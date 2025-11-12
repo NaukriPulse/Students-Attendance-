@@ -1,217 +1,207 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Students Attendance Portal 2025</title>
-<style>
-body{font-family:Arial,sans-serif;background:#f3f6fb;margin:0;padding:20px;}
-.wrap{max-width:1000px;margin:0 auto}
-header{display:flex;align-items:center;justify-content:space-between}
-h1{margin:0 0 14px}
-.section{background:#fff;padding:14px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:16px}
-.flex{display:flex;gap:12px;align-items:center}
-input[type="date"],input[type="text"],input[type="password"],input[type="file"]{padding:8px;border-radius:6px;border:1px solid #ccc}
-button{padding:8px 12px;border-radius:6px;border:none;background:#0b7fb3;color:#fff;cursor:pointer}
-button.secondary{background:#6c757d}
-#studentsGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-top:12px}
-.card{border:1px solid #e6eef6;padding:10px;border-radius:8px;background:#fbfeff}
-.card h3{margin:0;font-size:15px}
-.small{font-size:13px;color:#555}
-table{width:100%;border-collapse:collapse;margin-top:12px}
-th,td{border:1px solid #ddd;padding:8px;text-align:left}
-th{background:#0b7fb3;color:#fff}
-#msg{margin-top:8px;color:green}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Students Attendance Portal (2025)</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(120deg, #a6c0fe, #f68084);
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: rgba(255,255,255,0.9);
+      padding: 15px;
+      text-align: center;
+      font-size: 1.8em;
+      font-weight: bold;
+      color: #333;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    .container {
+      max-width: 800px;
+      margin: 30px auto;
+      background: #fff;
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.1);
+    }
+    .student {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #ddd;
+      padding: 10px 0;
+    }
+    .student:last-child { border-bottom: none; }
+    .student img {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-right: 10px;
+    }
+    button {
+      background: #4CAF50;
+      border: none;
+      color: white;
+      padding: 8px 15px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    button:hover { background: #45a049; }
+    #studentForm, #teacherPanel {
+      display: none;
+      margin-top: 20px;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 8px;
+      margin-top: 8px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+    .back-btn {
+      margin-top: 10px;
+      background: #555;
+    }
+    .back-btn:hover { background: #333; }
+  </style>
 </head>
 <body>
-<div class="wrap">
-<header><h1>📋 Students Attendance Portal (2025)</h1></header>
 
-<!-- Student Login -->
-<div class="section">
-<h2>Student Login (PIN)</h2>
-<input type="text" id="studentPin" placeholder="Enter your PIN">
-<button id="studentLoginBtn">Login</button>
-<div id="studentMsg" class="small"></div>
-</div>
+  <header>📋 Students Attendance Portal (2025)</header>
 
-<!-- Student Dashboard -->
-<div class="section" id="studentDashboard" style="display:none">
-<h2>Welcome, <span id="studentName"></span></h2>
-<button id="markAttendanceBtn">Mark Attendance Today</button>
-<div id="attendanceTable">Your attendance for today will appear here.</div>
+  <div class="container" id="mainPage">
+    <h2>All Students</h2>
+    <div id="studentList">
+      <!-- Students dynamically load honge -->
+    </div>
+    <hr>
+    <h3>Teacher Login</h3>
+    <input type="password" id="teacherCode" placeholder="Enter secret code">
+    <button onclick="teacherLogin()">Login</button>
+  </div>
+<!-- Student Login Form -->
+  <div class="container" id="studentForm">
+    <h2 id="studentNameTitle"></h2>
+    <img id="studentPic" src="" width="100" height="100" style="border-radius:50%;object-fit:cover;margin-bottom:10px;">
+    <input type="text" id="studentMobile" placeholder="Mobile Number">
+    <input type="text" id="studentClass" placeholder="Class">
+    <input type="text" id="studentTarget" placeholder="Job Target 🎯">
+    <textarea id="studentQuote" placeholder="Your Motivational Quote/Status"></textarea>
+    <input type="file" id="studentImage" accept="image/*">
+    <button onclick="saveProfile()">Save / Update</button>
+    <button onclick="markAttendance()">Mark Attendance</button>
+    <button class="back-btn" onclick="goBack()">⬅️ Back</button>
+  </div>
 
-<h3>Update Your Profile</h3>
-<label>Name:</label><input type="text" id="profileName"><br>
-<label>Mobile:</label><input type="text" id="profileMobile"><br>
-<label>Job Target:</label><input type="text" id="profileJob"><br>
-<label>Mobile Usage Time:</label><input type="text" id="profileUsage"><br>
-<label>Profile Pic:</label><input type="file" id="profilePic"><br>
-<button id="updateProfileBtn">Update Profile</button>
-<div id="profileMsg" class="small"></div>
-</div>
+  <!-- Teacher Panel -->
+  <div class="container" id="teacherPanel">
+    <h2>All Students Records</h2>
+    <div id="allRecords"></div>
+    <button class="back-btn" onclick="goBack()">⬅️ Back</button>
+  </div>
 
-<!-- Teacher Section -->
-<div class="section">
-<h2>Teacher Login</h2>
-<input type="password" id="teacherCode" placeholder="Enter secret code">
-<button id="teacherLoginBtn">Show All Records</button>
-<div id="teacherArea"></div>
-<div id="topStudents"></div>
-</div>
+  <!-- Firebase Configuration -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
+    import { getFirestore, collection, doc, setDoc, getDoc, getDocs } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
 
-<div id="msg" class="small"></div>
-</div>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCb5MYw_DFba34lPHbME0stKdFG7yO3J6E",
+      authDomain: "students-attendance-file.firebaseapp.com",
+      projectId: "students-attendance-file",
+      storageBucket: "students-attendance-file.firebasestorage.app",
+      messagingSenderId: "345717849296",
+      appId: "1:345717849296:web:e41ec4f10b100d8613f2d5",
+      measurementId: "G-FSYN886316"
+    };
 
-<script type="module">
-// ---- Firebase Imports ----
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
-import { getFirestore, collection, getDocs, addDoc, updateDoc, doc, query, where, serverTimestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-storage.js";
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
-// ---- Firebase Config ----
-const firebaseConfig = {
-  apiKey: "AIzaSyCb5MYw_DFba34lPHbME0stKdFG7yO3J6E",
-  authDomain: "students-attendance-file.firebaseapp.com",
-  projectId: "students-attendance-file",
-  storageBucket: "students-attendance-file.firebasestorage.app",
-  messagingSenderId: "345717849296",
-  appId: "1:345717849296:web:e41ec4f10b100d8613f2d5",
-  measurementId: "G-FSYN886316"
-};
+const students = [
+      { name: "Aarav Meena", pin: "1111" },
+      { name: "Kavya Singh", pin: "2222" },
+      { name: "Rohit Sharma", pin: "3333" },
+      { name: "Pooja Kumari", pin: "4444" },
+      { name: "Naveen Kumar", pin: "5555" }
+    ];
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const storage = getStorage(app);
+    const studentListDiv = document.getElementById("studentList");
 
-// ---- 5 Students ----
-const bootstrapStudents = [
-  {name:"Ravi Kumar", code:"1111"},
-  {name:"Sita Sharma", code:"2222"},
-  {name:"Amit Singh", code:"3333"},
-  {name:"Pooja Verma", code:"4444"},
-  {name:"Rahul Meena", code:"5555"}
-];
-
-// Add students if empty
-async function bootstrapIfEmpty() {
-  const snap = await getDocs(collection(db,'students'));
-  if(snap.empty){
-    for(const s of bootstrapStudents){
-      await addDoc(collection(db,'students'),s);
-    }
-  }
-}
-
-// ---- Student Login ----
-let currentStudentId = null;
-let currentStudentData = null;
-
-document.getElementById('studentLoginBtn').addEventListener('click', async ()=>{
-  const pin = document.getElementById('studentPin').value.trim();
-  if(!pin){alert('Enter PIN'); return;}
-  const q = query(collection(db,'students'), where('code','==',pin));
-  const snap = await getDocs(q);
-  if(snap.empty){alert('Invalid PIN'); return;}
-  currentStudentId = snap.docs[0].id;
-  currentStudentData = snap.docs[0].data();
-  document.getElementById('studentName').textContent = currentStudentData.name;
-  document.getElementById('studentDashboard').style.display='block';
-  document.getElementById('studentMsg').textContent='Logged in successfully!';
-  loadStudentAttendance();
-  loadProfile();
-});
-
-// ---- Load student attendance (today) ----
-async function loadStudentAttendance(){
-  const today = new Date().toISOString().slice(0,10);
-  const q = query(collection(db,'attendance'), where('studentId','==',currentStudentId), where('date','==',today));
-  onSnapshot(q,(snap)=>{
-    let html = '<table><tr><th>Date</th><th>Status</th><th>Time</th></tr>';
-    snap.forEach(doc=>{
-      const d = doc.data();
-      const timeText = d.time ? d.time.toDate().toLocaleTimeString() : '-';
-      html += `<tr><td>${d.date}</td><td>${d.status}</td><td>${timeText}</td></tr>`;
+    students.forEach(stu => {
+      const div = document.createElement("div");
+      div.className = "student";
+      div.innerHTML = `
+        <div><strong>${stu.name}</strong></div>
+        <button onclick="studentLogin('${stu.name}', '${stu.pin}')">Login</button>
+      `;
+      studentListDiv.appendChild(div);
     });
-    html+='</table>';
-    document.getElementById('attendanceTable').innerHTML=html;
-  });
-}
 
-// ---- Mark Attendance ----
-document.getElementById('markAttendanceBtn').addEventListener('click', async ()=>{
-  const today = new Date().toISOString().slice(0,10);
-  const q = query(collection(db,'attendance'), where('studentId','==',currentStudentId), where('date','==',today));
-  const snap = await getDocs(q);
-  if(!snap.empty){alert('Already marked today!'); return;}
-  await addDoc(collection(db,'attendance'),{
-    studentId: currentStudentId,
-    name: currentStudentData.name,
-    date: today,
-    status:'Present',
-    time: serverTimestamp()
-  });
-  alert('Attendance marked for today!');
-});
+    let currentStudent = null;
 
-// ---- Profile ----
-function loadProfile(){
-  document.getElementById('profileName').value = currentStudentData.name || '';
-  document.getElementById('profileMobile').value = currentStudentData.mobile || '';
-  document.getElementById('profileJob').value = currentStudentData.jobTarget || '';
-  document.getElementById('profileUsage').value = currentStudentData.usageTime || '';
-}
+    window.studentLogin = async (name, pin) => {
+      const userPin = prompt(`Enter login PIN for ${name}:`);
+      if (userPin === pin) {
+        currentStudent = name;
+        document.getElementById("mainPage").style.display = "none";
+        document.getElementById("studentForm").style.display = "block";
+        document.getElementById("studentNameTitle").textContent = name;
+      } else {
+        alert("❌ Incorrect PIN");
+      }
+    };
 
-document.getElementById('updateProfileBtn').addEventListener('click', async ()=>{
-  const updates = {
-    name: document.getElementById('profileName').value,
-    mobile: document.getElementById('profileMobile').value,
-    jobTarget: document.getElementById('profileJob').value,
-    usageTime: document.getElementById('profileUsage').value
-  };
-  const file = document.getElementById('profilePic').files[0];
-  if(file){
-    const storageRef = ref(storage,'profilePics/'+currentStudentId);
-    await uploadBytes(storageRef,file);
-    updates.profilePicURL = await getDownloadURL(storageRef);
-  }
-  await updateDoc(doc(db,'students',currentStudentId),updates);
-  alert('Profile updated!');
-});
+    window.saveProfile = async () => {
+      const mobile = studentMobile.value;
+      const cls = studentClass.value;
+      const target = studentTarget.value;
+      const quote = studentQuote.value;
 
-// ---- Teacher View ----
-document.getElementById('teacherLoginBtn').addEventListener('click', async ()=>{
-  const code = document.getElementById('teacherCode').value.trim();
-  if(code!=='TEACHER123'){alert('Invalid code'); return;}
-  const attSnap = await getDocs(collection(db,'attendance'));
-  let html = '<h3>All Attendance Records</h3><table><tr><th>Student</th><th>Date</th><th>Status</th></tr>';
-  attSnap.forEach(doc=>{
-    const d = doc.data();
-    html+=`<tr><td>${d.name}</td><td>${d.date}</td><td>${d.status}</td></tr>`;
-  });
-  html+='</table>';
-  document.getElementById('teacherArea').innerHTML=html;
+      await setDoc(doc(db, "students", currentStudent), {
+        name: currentStudent,
+        mobile, class: cls, target, quote,
+        lastUpdated: new Date().toLocaleString()
+      });
+      alert("✅ Profile saved successfully!");
+    };
 
-  // Top 3 students
-  const studSnap = await getDocs(collection(db,'students'));
-  let arr = [];
-  for(const s of studSnap.docs){
-    const student = s.data();
-    const q = query(collection(db,'attendance'), where('studentId','==',s.id), where('status','==','Present'));
-    const aSnap = await getDocs(q);
-    arr.push({name: student.name, total: aSnap.size});
-  }
-  arr.sort((a,b)=>b.total-a.total);
-  const top3 = arr.slice(0,3);
-  let htmlTop = '<h3>Top 3 Students</h3><table><tr><th>Name</th><th>Total Attendance</th></tr>';
-  top3.forEach(s=>htmlTop+=`<tr><td>${s.name}</td><td>${s.total}</td></tr>`);
-  htmlTop+='</table>';
-  document.getElementById('topStudents').innerHTML=htmlTop;
-});
+    window.markAttendance = async () => {
+      const date = new Date().toLocaleString();
+      await setDoc(doc(db, "attendance", currentStudent), {
+        name: currentStudent, date
+      });
+      alert("🕒 Attendance marked!");
+      goBack();
+    };
 
-// ---- Init ----
-bootstrapIfEmpty();
-</script>
+    window.teacherLogin = async () => {
+      const code = document.getElementById("teacherCode").value;
+      if (code === "9999") {
+        document.getElementById("mainPage").style.display = "none";
+        document.getElementById("teacherPanel").style.display = "block";
+        const snap = await getDocs(collection(db, "students"));
+        let html = "";
+        snap.forEach(d => {
+          const s = d.data();
+          html += `<p><b>${s.name}</b> — 📞 ${s.mobile || 'N/A'} | 🎯 ${s.target || ''} | "${s.quote || ''}"</p>`;
+        });
+        document.getElementById("allRecords").innerHTML = html;
+      } else alert("❌ Wrong code");
+    };
+
+    window.goBack = () => {
+      document.getElementById("studentForm").style.display = "none";
+      document.getElementById("teacherPanel").style.display = "none";
+      document.getElementById("mainPage").style.display = "block";
+    };
+  </script>
+
 </body>
 </html>
