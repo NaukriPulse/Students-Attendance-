@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <title>Students Attendance 2025</title>
+  <style>
+    body { font-family: Arial; margin: 20px; }
+    button { margin: 5px; padding: 5px 10px; cursor: pointer; }
+    #studentsGrid button { width: 250px; text-align: left; }
+    h1 { color: #333; }
+  </style>
+</head>
+<body>
+  <h1>Attendance 2025</h1>
+  <label>Select Date: </label>
+  <input type="date" id="dateSel" />
+  <div id="studentsGrid"></div>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-analytics.js";
+    import { getFirestore, collection, getDocs, query, where, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+
+    // Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyA4MzWykLY_I2egVYlqNqxdipULjZX79O0",
+      authDomain: "students-attendance-record.firebaseapp.com",
+      projectId: "students-attendance-record",
+      storageBucket: "students-attendance-record.firebasestorage.app",
+      messagingSenderId: "990357919808",
+      appId: "1:990357919808:web:a2fd1132bd8b6b9a9f27a5",
+      measurementId: "G-24SPQBRPY0"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    const db = getFirestore(app);
+
+    const studentsGrid = document.getElementById('studentsGrid');
+    const dateSel = document.getElementById('dateSel');
+
+    // Example 35 students (change names/codes if you want)
+    const exampleStudents = [
+      {name:"Ravi Kumar", roll:1, code:"1111"},
+      {name:"Sita Sharma", roll:2, code:"2222"},
+      {name:"Amit Singh", roll:3, code:"3333"},
+      {name:"Pooja Verma", roll:4, code:"4444"},
+      {name:"Rahul Meena", roll:5, code:"5555"},
+      {name:"Neha Jain", roll:6, code:"6666"},
+      {name:"Ankit Yadav", roll:7, code:"7777"},
+      {name:"Priya Gupta", roll:8, code:"8888"},
+      {name:"Karan Rathore", roll:9, code:"9999"},
+      {name:"Sneha Patel", roll:10, code:"1010"},
+      {name:"Vikas Sharma", roll:11, code:"1111"},
+      {name:"Anjali Singh", roll:12, code:"1212"},
+      {name:"Manish Mehta", roll:13, code:"1313"},
+      {name:"Ritu Verma", roll:14, code:"1414"},
+      {name:"Deepak Kumar", roll:15, code:"1515"},
+      {name:"Sonal Jain", roll:16, code:"1616"},
+      {name:"Ajay Yadav", roll:17, code:"1717"},
+      {name:"Kriti Gupta", roll:18, code:"1818"},
+      {name:"Rohit Rathore", roll:19, code:"1919"},
+      {name:"Anusha Patel", roll:20, code:"2020"},
+      {name:"Suresh Sharma", roll:21, code:"2121"},
+      {name:"Pallavi Singh", roll:22, code:"2222"},
+      {name:"Rakesh Meena", roll:23, code:"2323"},
+      {name:"Neelam Verma", roll:24, code:"2424"},
+      {name:"Harsh Kumar", roll:25, code:"2525"},
+      {name:"Shreya Jain", roll:26, code:"2626"},
+      {name:"Aditya Yadav", roll:27, code:"2727"},
+      {name:"Nikita Gupta", roll:28, code:"2828"},
+      {name:"Sanjay Rathore", roll:29, code:"2929"},
+      {name:"Radhika Patel", roll:30, code:"3030"},
+      {name:"Vinay Sharma", roll:31, code:"3131"},
+      {name:"Megha Singh", roll:32, code:"3232"},
+      {name:"Kunal Mehta", roll:33, code:"3333"},
+      {name:"Ankita Verma", roll:34, code:"3434"},
+      {name:"Rajesh Kumar", roll:35, code:"3535"}
+    ];
+
+    // Load students into grid
+    async function loadStudents() {
+      const snap = await getDocs(collection(db, "students"));
+      studentsGrid.innerHTML = '';
+      snap.forEach(doc => {
+        const s = doc.data();
+        const btn = document.createElement('button');
+        btn.textContent = `${s.name} - Mark Attendance`;
+        btn.onclick = async () => {
+          const pin = prompt(`Enter your PIN for ${s.name}`);
+          if(pin !== s.code){ alert("Invalid PIN"); return; }
+          const selectedDate = dateSel.value;
+          if(!selectedDate){ alert("Select a date first"); return; }
+
+          const q = query(collection(db, "attendance"), where("studentId","==",doc.id), where("date","==",selectedDate));
+          const checkSnap = await getDocs(q);
+          if(!checkSnap.empty){ alert("Attendance already marked for this date"); return; }
+
+          await addDoc(collection(db, "attendance"), {
+            studentId: doc.id,
+            name: s.name,
+            date: selectedDate,
+            month: parseInt(selectedDate.split('-')[1]),
+            year: 2025,
+            status: "Present",
+            time: serverTimestamp()
+          });
+          alert("Attendance saved!");
+        };
+        studentsGrid.appendChild(btn);
+        studentsGrid.appendChild(document.createElement('br'));
+      });
+    }
+
+    loadStudents();
+  </script>
+</body>
+</html>
