@@ -1,119 +1,166 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Students Attendance 2025</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Students Attendance</title>
+
   <style>
-    body { font-family: Arial; margin: 20px; }
-    button { margin: 5px; padding: 5px 10px; cursor: pointer; }
-    #studentsGrid button { width: 250px; text-align: left; }
-    h1 { color: #333; }
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: linear-gradient(135deg, #c3ec52, #0ba29d);
+      color: #333;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+    }
+
+    h1 {
+      background: #fff;
+      padding: 15px;
+      margin: 0;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .container {
+      margin: 30px auto;
+      max-width: 600px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+      padding: 20px;
+    }
+
+    label {
+      font-weight: bold;
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    input[type="date"] {
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      margin-bottom: 15px;
+    }
+
+    button {
+      background: #0ba29d;
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    button:hover {
+      background: #088b86;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+    }
+
+    th {
+      background: #0ba29d;
+      color: #fff;
+    }
+
+    td {
+      background: #f8f8f8;
+    }
+
+    #noData {
+      color: red;
+      font-weight: bold;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
-  <h1>Attendance 2025</h1>
-  <label>Select Date: </label>
-  <input type="date" id="dateSel" />
-  <div id="studentsGrid"></div>
+
+  <h1>📋 Students Attendance</h1>
+
+  <div class="container">
+    <label>Select Date:</label>
+    <input type="date" id="attendanceDate" />
+    <button onclick="loadAttendance()">Show Attendance</button>
+
+    <div id="output"></div>
+  </div>
 
   <!-- Firebase SDK -->
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
-    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-analytics.js";
-    import { getFirestore, collection, getDocs, query, where, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+    // Import Firebase
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import { getDatabase, ref, get, child } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
-    // Firebase Config
+    // Your Firebase Config (⚠️ Replace with your actual config)
     const firebaseConfig = {
-      apiKey: "AIzaSyA4MzWykLY_I2egVYlqNqxdipULjZX79O0",
-      authDomain: "students-attendance-record.firebaseapp.com",
-      projectId: "students-attendance-record",
-      storageBucket: "students-attendance-record.firebasestorage.app",
-      messagingSenderId: "990357919808",
-      appId: "1:990357919808:web:a2fd1132bd8b6b9a9f27a5",
-      measurementId: "G-24SPQBRPY0"
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      databaseURL: "https://YOUR_PROJECT_ID.firebaseio.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
     };
 
+    // Initialize Firebase
     const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
-    const db = getFirestore(app);
+    const db = getDatabase(app);
 
-    const studentsGrid = document.getElementById('studentsGrid');
-    const dateSel = document.getElementById('dateSel');
+    async function loadAttendance() {
+      const selectedDate = document.getElementById("attendanceDate").value;
+      const output = document.getElementById("output");
+      output.innerHTML = "";
 
-    // Example 35 students (change names/codes if you want)
-    const exampleStudents = [
-      {name:"Ravi Kumar", roll:1, code:"1111"},
-      {name:"Sita Sharma", roll:2, code:"2222"},
-      {name:"Amit Singh", roll:3, code:"3333"},
-      {name:"Pooja Verma", roll:4, code:"4444"},
-      {name:"Rahul Meena", roll:5, code:"5555"},
-      {name:"Neha Jain", roll:6, code:"6666"},
-      {name:"Ankit Yadav", roll:7, code:"7777"},
-      {name:"Priya Gupta", roll:8, code:"8888"},
-      {name:"Karan Rathore", roll:9, code:"9999"},
-      {name:"Sneha Patel", roll:10, code:"1010"},
-      {name:"Vikas Sharma", roll:11, code:"1111"},
-      {name:"Anjali Singh", roll:12, code:"1212"},
-      {name:"Manish Mehta", roll:13, code:"1313"},
-      {name:"Ritu Verma", roll:14, code:"1414"},
-      {name:"Deepak Kumar", roll:15, code:"1515"},
-      {name:"Sonal Jain", roll:16, code:"1616"},
-      {name:"Ajay Yadav", roll:17, code:"1717"},
-      {name:"Kriti Gupta", roll:18, code:"1818"},
-      {name:"Rohit Rathore", roll:19, code:"1919"},
-      {name:"Anusha Patel", roll:20, code:"2020"},
-      {name:"Suresh Sharma", roll:21, code:"2121"},
-      {name:"Pallavi Singh", roll:22, code:"2222"},
-      {name:"Rakesh Meena", roll:23, code:"2323"},
-      {name:"Neelam Verma", roll:24, code:"2424"},
-      {name:"Harsh Kumar", roll:25, code:"2525"},
-      {name:"Shreya Jain", roll:26, code:"2626"},
-      {name:"Aditya Yadav", roll:27, code:"2727"},
-      {name:"Nikita Gupta", roll:28, code:"2828"},
-      {name:"Sanjay Rathore", roll:29, code:"2929"},
-      {name:"Radhika Patel", roll:30, code:"3030"},
-      {name:"Vinay Sharma", roll:31, code:"3131"},
-      {name:"Megha Singh", roll:32, code:"3232"},
-      {name:"Kunal Mehta", roll:33, code:"3333"},
-      {name:"Ankita Verma", roll:34, code:"3434"},
-      {name:"Rajesh Kumar", roll:35, code:"3535"}
-    ];
+      if (!selectedDate) {
+        output.innerHTML = "<p style='color:red;'>⚠️ Please select a date.</p>";
+        return;
+      }
 
-    // Load students into grid
-    async function loadStudents() {
-      const snap = await getDocs(collection(db, "students"));
-      studentsGrid.innerHTML = '';
-      snap.forEach(doc => {
-        const s = doc.data();
-        const btn = document.createElement('button');
-        btn.textContent = `${s.name} - Mark Attendance`;
-        btn.onclick = async () => {
-          const pin = prompt(`Enter your PIN for ${s.name}`);
-          if(pin !== s.code){ alert("Invalid PIN"); return; }
-          const selectedDate = dateSel.value;
-          if(!selectedDate){ alert("Select a date first"); return; }
+      try {
+        const dbRef = ref(db);
+        const snapshot = await get(child(dbRef, `Attendance/${selectedDate}`));
 
-          const q = query(collection(db, "attendance"), where("studentId","==",doc.id), where("date","==",selectedDate));
-          const checkSnap = await getDocs(q);
-          if(!checkSnap.empty){ alert("Attendance already marked for this date"); return; }
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          let tableHTML = `
+            <table>
+              <tr>
+                <th>Student Name</th>
+                <th>Status</th>
+              </tr>
+          `;
 
-          await addDoc(collection(db, "attendance"), {
-            studentId: doc.id,
-            name: s.name,
-            date: selectedDate,
-            month: parseInt(selectedDate.split('-')[1]),
-            year: 2025,
-            status: "Present",
-            time: serverTimestamp()
+          Object.keys(data).forEach(name => {
+            tableHTML += `
+              <tr>
+                <td>${name}</td>
+                <td>${data[name]}</td>
+              </tr>
+            `;
           });
-          alert("Attendance saved!");
-        };
-        studentsGrid.appendChild(btn);
-        studentsGrid.appendChild(document.createElement('br'));
-      });
-    }
 
-    loadStudents();
+          tableHTML += "</table>";
+          output.innerHTML = tableHTML;
+        } else {
+          output.innerHTML = "<p id='noData'>No attendance data found for this date.</p>";
+        }
+      } catch (error) {
+        output.innerHTML = `<p style='color:red;'>Error: ${error.message}</p>`;
+      }
+    }
   </script>
+
 </body>
 </html>
