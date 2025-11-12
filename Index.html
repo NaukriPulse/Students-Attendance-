@@ -1,70 +1,69 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Students Attendance</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Students Attendance 2025</title>
   <style>
-    body {
-      font-family: "Poppins", sans-serif;
-      background: #f6f7fb;
-      text-align: center;
-      padding: 40px;
-    }
-    h1 {
-      color: #333;
-      margin-bottom: 20px;
-    }
-    input[type="date"] {
-      padding: 10px;
-      font-size: 16px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-    }
-    button {
-      margin-top: 10px;
-      padding: 10px 20px;
-      background: #007bff;
-      border: none;
-      color: white;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 16px;
-    }
-    button:hover {
-      background: #0056b3;
-    }
-    table {
-      width: 90%;
-      margin: 30px auto;
-      border-collapse: collapse;
-    }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 10px;
-    }
-    th {
-      background: #007bff;
-      color: white;
-    }
+    body{font-family:Arial, Helvetica, sans-serif; background:#f3f6fb; margin:0;padding:20px}
+    .wrap{max-width:1000px;margin:0 auto}
+    header{display:flex;align-items:center;justify-content:space-between}
+    h1{margin:0 0 14px}
+    .section{background:#fff;padding:14px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:16px}
+    .flex{display:flex;gap:12px;align-items:center}
+    input[type="date"]{padding:8px;border-radius:6px;border:1px solid #ccc}
+    button{padding:8px 12px;border-radius:6px;border:none;background:#0b7fb3;color:#fff;cursor:pointer}
+    button.secondary{background:#6c757d}
+    #studentsGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-top:12px}
+    .card{border:1px solid #e6eef6;padding:10px;border-radius:8px;background:#fbfeff}
+    .card h3{margin:0;font-size:15px}
+    .small{font-size:13px;color:#555}
+    table{width:100%;border-collapse:collapse;margin-top:12px}
+    th,td{border:1px solid #ddd;padding:8px;text-align:left}
+    th{background:#0b7fb3;color:#fff}
+    #msg{margin-top:8px;color:green}
   </style>
 </head>
 <body>
+  <div class="wrap">
+    <header>
+      <h1>📋 Students Attendance (2025)</h1>
+    </header>
 
-  <h1>📘 Students Attendance Record</h1>
+    <div class="section">
+      <div class="flex">
+        <div>
+          <label class="small">Select date (students will mark for this date):</label><br>
+          <input type="date" id="dateSel" />
+        </div>
 
-  <input type="date" id="attendanceDate" />
-  <button onclick="loadAttendance()">Show Attendance</button>
+        <div style="margin-left:auto">
+          <label class="small">Teacher view - select date and click Show Attendance:</label><br>
+          <input type="date" id="teacherDate" />
+          <button id="showBtn">Show Attendance</button>
+        </div>
+      </div>
+      <div id="msg" class="small"></div>
+    </div>
 
-  <div id="dataArea"></div>
+    <div class="section">
+      <h2 style="margin-top:0;">Students (Click "Mark" → Enter PIN)</h2>
+      <div id="studentsGrid">Loading students...</div>
+    </div>
 
-  <!-- Firebase -->
+    <div class="section">
+      <h2 style="margin-top:0;">Attendance Records</h2>
+      <div id="attendanceArea">Select a date above (Teacher view) and click Show Attendance</div>
+    </div>
+  </div>
+
+  <!-- Firebase + App Code (Modular SDK) -->
   <script type="module">
-    // Import Firebase SDK
+    // ---- imports ----
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
-    import { getFirestore, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, addDoc, query, where, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
 
-    // Your Firebase Config
+    // ---- Your firebase config (you gave this) ----
     const firebaseConfig = {
       apiKey: "AIzaSyA4MzWykLY_I2egVYlqNqxdipULjZX79O0",
       authDomain: "students-attendance-record.firebaseapp.com",
@@ -75,49 +74,169 @@
       measurementId: "G-24SPQBRPY0"
     };
 
-    // Initialize Firebase
+    // ---- initialize ----
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    async function loadAttendance() {
-      const date = document.getElementById("attendanceDate").value;
-      const dataArea = document.getElementById("dataArea");
+    // html elements
+    const studentsGrid = document.getElementById('studentsGrid');
+    const dateSel = document.getElementById('dateSel');
+    const teacherDate = document.getElementById('teacherDate');
+    const showBtn = document.getElementById('showBtn');
+    const attendanceArea = document.getElementById('attendanceArea');
+    const msg = document.getElementById('msg');
 
-      if (!date) {
-        alert("Please select a date!");
+    // default date values: prefer 2025 if current year not 2025
+    const today = new Date();
+    if (today.getFullYear() === 2025) {
+      const iso = today.toISOString().slice(0,10);
+      dateSel.value = iso;
+      teacherDate.value = iso;
+    } else {
+      dateSel.value = "2025-01-01";
+      teacherDate.value = "2025-01-01";
+    }
+
+    // Example students (used only to bootstrap if students collection is empty)
+    const bootstrapStudents = [
+      {name:"Ravi Kumar", roll:1, code:"1111"},
+      {name:"Sita Sharma", roll:2, code:"2222"},
+      {name:"Amit Singh", roll:3, code:"3333"},
+      {name:"Pooja Verma", roll:4, code:"4444"},
+      {name:"Rahul Meena", roll:5, code:"5555"},
+      {name:"Neha Jain", roll:6, code:"6666"},
+      {name:"Ankit Yadav", roll:7, code:"7777"},
+      {name:"Priya Gupta", roll:8, code:"8888"},
+      {name:"Karan Rathore", roll:9, code:"9999"},
+      {name:"Sneha Patel", roll:10, code:"1010"}
+    ];
+
+    // ---- helper: read students ----
+    async function getStudentsFromFirestore() {
+      const snap = await getDocs(collection(db, 'students'));
+      const arr = [];
+      snap.forEach(d => { arr.push({ id: d.id, ...d.data() }); });
+      return arr;
+    }
+
+    // ---- helper: bootstrap students if none exist ----
+    async function bootstrapIfEmpty() {
+      const list = await getStudentsFromFirestore();
+      if (list.length === 0) {
+        // add bootstrapStudents (one by one)
+        for (const s of bootstrapStudents) {
+          try {
+            await addDoc(collection(db, 'students'), s);
+          } catch(e) {
+            console.error('bootstrap add error', e);
+          }
+        }
+        msg.textContent = 'Students collection was empty — added example students. Edit Firestore to change names/PINs.';
+      }
+    }
+
+    // ---- render students grid ----
+    async function loadStudentsGrid() {
+      studentsGrid.innerHTML = 'Loading...';
+      const students = await getStudentsFromFirestore();
+      if (students.length === 0) {
+        studentsGrid.innerHTML = '<div class="small">No students found. Add them in Firestore → collection `students`.</div>';
+        return;
+      }
+      studentsGrid.innerHTML = '';
+      students.forEach(s => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <h3>${s.name}</h3>
+          <div class="small">Roll: ${s.roll ?? '-'}</div>
+          <div style="margin-top:8px">
+            <button data-id="${s.id}" data-name="${s.name}" data-code="${s.code}">Mark Attendance</button>
+          </div>
+        `;
+        studentsGrid.appendChild(card);
+      });
+    }
+
+    // ---- mark attendance handler ----
+    studentsGrid.addEventListener('click', async (ev) => {
+      const btn = ev.target.closest('button');
+      if (!btn) return;
+      const studentId = btn.dataset.id;
+      const studentName = btn.dataset.name;
+      const studentCode = btn.dataset.code;
+      const selectedDate = dateSel.value;
+      if (!selectedDate) { alert('Please select a date first'); return; }
+
+      const pin = prompt(`Enter your PIN for ${studentName}`);
+      if (pin === null) return; // cancelled
+      if (String(pin).trim() !== String(studentCode).trim()) {
+        alert('Invalid PIN. Attendance not recorded.');
         return;
       }
 
-      dataArea.innerHTML = "<p>Loading attendance...</p>";
-
+      // check duplicate
       try {
-        const q = query(collection(db, "attendance"), where("date", "==", date));
-        const querySnapshot = await getDocs(q);
-
-        if (querySnapshot.empty) {
-          dataArea.innerHTML = "<p>No attendance record found for this date.</p>";
+        const q = query(collection(db, 'attendance'), where('studentId','==',studentId), where('date','==',selectedDate));
+        const existing = await getDocs(q);
+        if (!existing.empty) {
+          alert('Attendance already recorded for this student on this date.');
           return;
         }
 
-        let tableHTML = `
-          <table>
-            <tr><th>Student Name</th><th>Status</th></tr>
-        `;
-
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          tableHTML += `<tr><td>${data.name}</td><td>${data.status}</td></tr>`;
+        await addDoc(collection(db, 'attendance'), {
+          studentId: studentId,
+          name: studentName,
+          date: selectedDate,
+          month: parseInt(selectedDate.split('-')[1]),
+          year: parseInt(selectedDate.split('-')[0]),
+          status: 'Present',
+          time: serverTimestamp()
         });
 
-        tableHTML += `</table>`;
-        dataArea.innerHTML = tableHTML;
-
-      } catch (error) {
-        console.error(error);
-        dataArea.innerHTML = "<p>Error loading data.</p>";
+        alert('Attendance recorded. ✅');
+      } catch (err) {
+        console.error(err);
+        alert('Error recording attendance: ' + err.message);
       }
-    }
-  </script>
+    });
 
+    // ---- show attendance (teacher) ----
+    showBtn.addEventListener('click', async () => {
+      const selected = teacherDate.value;
+      attendanceArea.innerHTML = 'Loading...';
+      if (!selected) { attendanceArea.innerHTML = '<div style="color:red">Select a date first</div>'; return; }
+      try {
+        const q = query(collection(db, 'attendance'), where('date','==', selected), orderBy('time','asc'));
+        const snap = await getDocs(q);
+        if (snap.empty) {
+          attendanceArea.innerHTML = '<div class="small">No attendance records for this date.</div>';
+          return;
+        }
+        let html = `<table><tr><th>Student</th><th>Status</th><th>Marked At (server time)</th></tr>`;
+        snap.forEach(doc => {
+          const d = doc.data();
+          let timeText = d.time ? (d.time.toDate ? d.time.toDate().toLocaleString() : String(d.time)) : '-';
+          html += `<tr><td>${d.name}</td><td>${d.status}</td><td>${timeText}</td></tr>`;
+        });
+        html += `</table>`;
+        attendanceArea.innerHTML = html;
+      } catch (err) {
+        console.error(err);
+        attendanceArea.innerHTML = `<div style="color:red">Error: ${err.message}</div>`;
+      }
+    });
+
+    // ---- on load: bootstrap if needed, then render students ----
+    (async function init() {
+      try {
+        await bootstrapIfEmpty();
+      } catch(e) {
+        console.warn('bootstrap failed', e);
+      }
+      await loadStudentsGrid();
+    })();
+
+  </script>
 </body>
 </html>
