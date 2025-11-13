@@ -267,4 +267,302 @@
     // ---------- student login ----------
     studentsListEl.addEventListener('click', async ev=>{
       const btn=ev.target.closest('button.btn'); if(!btn) return;
-      const id=btn.dataset
+      studentsListEl.addEventListener('click', async (ev)=>{
+  const btn = ev.target.closest('button.btn'); if(!btn) return;
+  const id = btn.dataset.id;
+  const pinInput = document.querySelector(`input.pin[data-id="${id}"]`);
+  const pin = pinInput ? pinInput.value.trim() : '';
+  if(!pin){ alert('Enter PIN'); return; }
+  const sdoc = studentsCache.find(x=>x.id===id);
+  if(!sdoc){ alert('Student not found'); return; }
+  if(String(sdoc.data.code)!==pin){ alert('Invalid PIN'); return; }
+
+  currentStudent = { id: sdoc.id, data: sdoc.data };
+  openDashboard();
+});
+
+<script type="module">
+// Firebase imports
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
+import { getFirestore, collection, getDocs, addDoc, updateDoc, doc, query, where, serverTimestamp, onSnapshot, orderBy } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-storage.js";
+
+// Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyCFU5Oxlub5HK7Q8PLVm75Hm3cKfzVefs8",
+  authDomain: "attendance3-1d7cf.firebaseapp.com",
+  projectId: "attendance3-1d7cf",
+  storageBucket: "attendance3-1d7cf.firebasestorage.app",
+  messagingSenderId: "615910997079",
+  appId: "1:615910997079:web:b8c0f6fde1c17241bbb712",
+  measurementId: "G-5GEZ2TG2Q3"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const storage = getStorage(app);
+
+// ---------- initial students ----------
+const initialStudents = [
+  { name: "Ravi Kumar", code: "1111", class: "10-A"},
+  { name: "Sita Sharma", code: "2222", class: "10-A"},
+  { name: "Amit Singh", code: "3333", class: "10-A"},
+  { name: "Pooja Verma", code: "4444", class: "10-A"},
+  { name: "Rahul Meena", code: "5555", class: "10-A"}
+];
+
+// ---------- bootstrap if empty ----------
+async function bootstrapIfEmpty(){
+  const snap = await getDocs(collection(db, 'students'));
+  if(snap.empty){
+    for(const s of initialStudents){
+      await addDoc(collection(db,'students'), s);
+    }
+  }
+}
+
+// ---------- cache & UI references ----------
+let studentsCache = [];
+let currentStudent = null;
+
+const studentsListEl = document.getElementById('studentsList');
+const publicProfilesEl = document.getElementById('publicProfiles');
+const attendanceFeedEl = document.getElementById('attendanceFeed');
+const top3area = document.getElementById('top3area');
+const overlay = document.getElementById('overlay');
+const dashAvatar = document.getElementById('dashAvatar');
+const dashName = document.getElementById('dashName');
+const dashMeta = document.getElementById('dashMeta');
+const inpName = document.getElementById('inpName');
+const inpMobile = document.getElementById('inpMobile');
+const inpClass = document.getElementById('inpClass');
+const inpJob = document.getElementById('inpJob');
+const inpStatus = document.getElementById('inpStatus');
+const inpPic = document.getElementById('inpPic');
+const saveProfileBtn = document.getElementById('saveProfile');
+const saveMarkBtn = document.getElementById('markBtn');
+const yourRecentEl = document.getElementById('yourRecent');
+const markMsg = document.getElementById('markMsg');
+
+// ---------- render students & public profiles ----------
+function renderStudentsList(){
+  studentsListEl.innerHTML = '';
+  publicProfilesEl.innerHTML = '';
+  for(const s of studentsCache){
+    const data = s.data;
+    const card = document.createElement('div');
+    card.className = 'studentItem';
+
+    const avatar = document.createElement('div');
+    avatar.className = 'avatar';
+    if(data.profilePicURL){
+      const img = document.createElement('img');
+      img.src = data.profilePicURL;
+      img.style.width='60px'; img.style.height='60px'; img.style.borderRadius='10px'; img.style.objectFit='cover';
+      avatar.innerHTML = ''; avatar.appendChild(img);
+    } else { avatar.textContent = (data.name||'S')[0]; }
+
+    const meta = document.createElement('div');
+    meta.className = 'smeta';
+    meta.innerHTML = `<h3>${escapeHtml(data.name || '—')}</h3>
+                      <p>${escapeHtml(data.class || '')} • <span style="color:var(--muted)">${escapeHtml(data.jobTarget || '')}</span></p>
+                      <div class="loginRow">
+                        <input class="pin" placeholder="Enter PIN" data-id="${s.id}">
+                        <button class="btn" data-id="${s.id}">Login</button>
+                      </div>`;
+
+    card.appendChild(avatar);
+    card.appendChild(meta);
+    studentsListEl.appendChild(card);
+
+    // public profiles grid
+    const profCard = document.createElement('div');
+    profCard.style.cssText = 'background:var(--card);padding:10px;border-radius:10px;width:140px;text-align:center;border:1px solid rgba(255,255,255,0.02)';
+    const imgEl = document.createElement('img');
+    imgEl.style.cssText = 'width:84px;height:84px;border-radius:8px;object-fit:cover;margin-bottom:8px';
+    imgEl.src = data.profilePicURL || '';
+    if(!data.profilePicURL) imgEl.style.background='linear-gradient(135deg,#06b6d4,#0ea5e9)';
+    const nm = document.createElement('div'); nm.textContent=data.name||''; nm.style.fontWeight=700;
+    const st = document.createElement('div'); st.className='smallMuted'; st.style.marginTop='6px'; st.textContent=data.status||'';
+
+    profCard.appendChild(imgEl); profCard.appendChild(nm); profCard.appendChild(st);
+    publicProfilesEl.appendChild(profCard);
+  }
+}
+
+// ---------- escape helper ----------
+function escapeHtml(s=''){ return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+
+// ---------- student login ----------
+studentsListEl.addEventListener('click', async (ev)=>{
+  const btn = ev.target.closest('button.btn'); if(!btn) return;
+  const id = btn.dataset.id;
+  const pinInput = document.querySelector(`input.pin[data-id="${id}"]`);
+  const pin = pinInput ? pinInput.value.trim() : '';
+  if(!pin){ alert('Enter PIN'); return; }
+  const sdoc = studentsCache.find(x=>x.id===id);
+  if(!sdoc){ alert('Student not found'); return; }
+  if(String(sdoc.data.code)!==pin){ alert('Invalid PIN'); return; }
+
+  currentStudent = { id: sdoc.id, data: sdoc.data };
+  openDashboard();
+});
+
+// ---------- overlay open/close ----------
+document.getElementById('logoutBtn').addEventListener('click', ()=>{ overlay.style.display='none'; currentStudent=null; });
+function openDashboard(){
+  if(!currentStudent) return;
+  dashName.textContent=currentStudent.data.name||'Student';
+  dashMeta.textContent=`${currentStudent.data.class||''} • ${currentStudent.data.mobile||''}`;
+  dashAvatar.src=currentStudent.data.profilePicURL||'';
+  dashAvatar.style.display=currentStudent.data.profilePicURL?'block':'none';
+  inpName.value=currentStudent.data.name||'';
+  inpMobile.value=currentStudent.data.mobile||'';
+  inpClass.value=currentStudent.data.class||'';
+  inpJob.value=currentStudent.data.jobTarget||'';
+  inpStatus.value=currentStudent.data.status||'';
+  markMsg.textContent='';
+  overlay.style.display='flex';
+  loadYourRecent();
+}
+
+// ---------- save profile ----------
+saveProfileBtn.addEventListener('click', async ()=>{
+  if(!currentStudent) return;
+  const updates = {
+    name: inpName.value.trim(),
+    mobile: inpMobile.value.trim(),
+    class: inpClass.value.trim(),
+    jobTarget: inpJob.value.trim(),
+    status: inpStatus.value.trim()
+  };
+  const file = inpPic.files[0];
+  if(file){
+    const storRef = ref(storage, 'profilePics/'+currentStudent.id+'/'+Date.now());
+    await uploadBytes(storRef,file);
+    updates.profilePicURL=await getDownloadURL(storRef);
+  }
+  await updateDoc(doc(db,'students',currentStudent.id), updates);
+  currentStudent.data={...currentStudent.data,...updates};
+  const idx=studentsCache.findIndex(x=>x.id===currentStudent.id);
+  if(idx>=0) studentsCache[idx].data=currentStudent.data;
+  renderStudentsList();
+  dashName.textContent=currentStudent.data.name||'';
+  dashMeta.textContent=`${currentStudent.data.class||''} • ${currentStudent.data.mobile||''}`;
+  dashAvatar.src=currentStudent.data.profilePicURL||'';
+  dashAvatar.style.display=currentStudent.data.profilePicURL?'block':'none';
+  alert('Profile saved');
+});
+
+// ---------- mark attendance ----------
+saveMarkBtn.addEventListener('click', async ()=>{
+  if(!currentStudent) return;
+  const today = new Date().toISOString().slice(0,10);
+  const q = query(collection(db,'attendance'), where('studentId','==',currentStudent.id), where('date','==',today));
+  const snap = await getDocs(q);
+  if(!snap.empty){ markMsg.textContent='You already marked attendance for today.'; return; }
+  await addDoc(collection(db,'attendance'), {
+    studentId: currentStudent.id,
+    name: currentStudent.data.name||'',
+    date: today,
+    status:'Present',
+    time: serverTimestamp()
+  });
+  markMsg.textContent='Attendance marked ✅';
+  loadYourRecent();
+});
+
+// ---------- load recent ----------
+async function loadYourRecent(){
+  if(!currentStudent) return;
+  yourRecentEl.innerHTML='';
+  const attQ = query(collection(db,'attendance'), where('studentId','==',currentStudent.id), orderBy('time','desc'));
+  const snap = await getDocs(attQ);
+  if(snap.empty){ yourRecentEl.innerHTML='<div class="smallMuted">No attendance yet</div>'; return; }
+  snap.forEach(d=>{
+    const data=d.data();
+    const timeText=data.time && data.time.toDate?data.time.toDate().toLocaleString():data.time||data.date;
+    const el=document.createElement('div'); el.className='feedItem';
+    el.innerHTML=`<div style="width:10px;height:10px;border-radius:50%;background:var(--accent)"></div>
+                  <div style="flex:1"><div style="font-weight:700">${data.name}</div><div class="metaSmall">${data.date} • ${timeText}</div></div>`;
+    yourRecentEl.appendChild(el);
+  });
+}
+
+// ---------- live attendance feed ----------
+function startAttendanceFeed(){
+  const q = query(collection(db,'attendance'), orderBy('time','desc'));
+  onSnapshot(q,snap=>{
+    attendanceFeedEl.innerHTML='';
+    snap.forEach(docSnap=>{
+      const d=docSnap.data();
+      const timeText=d.time && d.time.toDate?d.time.toDate().toLocaleString():d.date;
+      const item=document.createElement('div'); item.className='feedItem';
+      const stud = studentsCache.find(s=>s.id===d.studentId);
+      const img=document.createElement('img'); img.src=stud?.data?.profilePicURL||''; if(!img.src) img.style.background='linear-gradient(135deg,#06b6d4,#0ea5e9)';
+      item.appendChild(img);
+      const md=document.createElement('div'); md.innerHTML=`<div style="font-weight:700">${escapeHtml(d.name||'—')}</div><div class="metaSmall">${escapeHtml(d.date)} • ${escapeHtml(timeText)}</div>`;
+      item.appendChild(md);
+      attendanceFeedEl.appendChild(item);
+    });
+  });
+}
+
+// ---------- listen students ----------
+function startStudentsListener(){
+  const q=query(collection(db,'students'));
+  onSnapshot(q,snap=>{
+    studentsCache=[];
+    snap.forEach(d=>studentsCache.push({id:d.id,data:d.data()}));
+    renderStudentsList();
+    computeTop3();
+  });
+}
+
+// ---------- compute top 3 ----------
+async function computeTop3(){
+  const attSnap = await getDocs(collection(db,'attendance'));
+  const counts = {};
+  attSnap.forEach(a=>{ const ad=a.data(); counts[ad.studentId]=(counts[ad.studentId]||0)+1; });
+  const arr = studentsCache.map(s=>({id:s.id,name:s.data.name,total:counts[s.id]||0}));
+  arr.sort((a,b)=>b.total-a.total);
+  const top = arr.slice(0,3);
+  top3area.innerHTML='';
+  for(const t of top){
+    const c=document.createElement('div'); c.className='topCard';
+    c.innerHTML=`<h4 class="smallMuted">${escapeHtml(t.name||'—')}</h4><p>${t.total}</p>`;
+    top3area.appendChild(c);
+  }
+}
+
+// ---------- teacher view ----------
+document.getElementById('teacherBtn').addEventListener('click', async ()=>{
+  const code = document.getElementById('teacherSecret').value.trim();
+  if(code!=='TEACHER123'){ alert('Invalid teacher code'); return; }
+  const studSnap=await getDocs(collection(db,'students'));
+  const attSnap=await getDocs(collection(db,'attendance'));
+  const map={};
+  attSnap.forEach(a=>{ const d=a.data(); map[d.studentId]=map[d.studentId]?map[d.studentId]+1:1; });
+  let html='<div style="max-height:420px;overflow:auto">';
+  html+='<table style="width:100%;border-collapse:collapse;color:#e6eef8"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid rgba(255,255,255,0.04)">Name</th><th style="text-align:left;padding:8px;border-bottom:1px solid rgba(255,255,255,0.04)">Mobile</th><th style="text-align:left;padding:8px;border-bottom:1px solid rgba(255,255,255,0.04)">Class</th><th style="text-align:left;padding:8px;border-bottom:1px solid rgba(255,255,255,0.04)">Total</th></tr></thead><tbody>';
+  studSnap.forEach(s=>{
+    const d=s.data();
+    html+=`<tr><td style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.02)">${escapeHtml(d.name||'')}</td><td style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.02)">${escapeHtml(d.mobile||'')}</td><td style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.02)">${escapeHtml(d.class||'')}</td><td style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.02)">${map[s.id]||0}</td></tr>`;
+  });
+  html+='</tbody></table></div>';
+  alert('Teacher access granted — report will open in a new window.');
+  const w = window.open('', '_blank');
+  w.document.write(`<html><head><title>Teacher Report</title><meta charset="utf-8"><style>body{background:#071021;color:#e6eef8;font-family:Inter,Arial;padding:18px}</style></head><body><h2>All Students Report</h2>${html}</body></html>`);
+});
+
+// ---------- refresh ----------
+document.getElementById('refreshBtn').addEventListener('click', ()=>{ renderStudentsList(); computeTop3(); });
+
+// ---------- startup ----------
+(async function init(){
+  try{ await bootstrapIfEmpty(); }catch(e){ console.error(e); }
+  startStudentsListener();
+  startAttendanceFeed();
+  computeTop3();
+})();
+</script>
