@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Students Attendance • Premium</title>
+<style>
+  body{font-family:Arial,sans-serif;background:#071021;color:#e6eef8;margin:0;padding:20px}
+  h2,h3,h4{margin:4px 0}
+  .smallMuted{color:#888;font-size:0.85em}
+  button{padding:5px 10px;margin:2px;border:none;background:#0ea5e9;color:white;border-radius:5px;cursor:pointer}
+  input{padding:4px;margin:2px;border-radius:4px;border:1px solid #ccc}
+  #studentsList .studentItem{display:flex;align-items:center;background:#0f172a;margin:6px 0;padding:10px;border-radius:8px}
+  .avatar{width:60px;height:60px;border-radius:10px;background:#06b6d4;color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;margin-right:10px}
+  .feedItem{display:flex;align-items:center;margin:4px 0}
+  .feedItem img{width:40px;height:40px;border-radius:50%;margin-right:6px;object-fit:cover}
+  #overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);display:none;justify-content:center;align-items:flex-start;padding-top:50px;z-index:1000;overflow:auto}
+  #overlayContent{background:#0f172a;padding:20px;border-radius:10px;width:90%;max-width:500px}
+  .topCard{background:#0f172a;padding:8px;margin:4px;border-radius:6px;text-align:center}
+</style>
+</head>
+<body>
+
+<h2>Students Attendance • Premium</h2>
+<p>Public student board • Login with PIN • Profile & attendance visible to all (real-time)</p>
+
+<div>
+  <input type="text" id="teacherSecret" placeholder="Teacher secret">
+  <button id="teacherBtn">Teacher Login</button>
+</div>
+<hr>
+
+<button id="refreshBtn">Refresh Students Board</button>
+<h3>Students Board</h3>
+<div id="studentsList"></div>
+
+<h3>Public Profiles & Quotes</h3>
+<div id="publicProfiles" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+
+<h3>Live Attendance Feed</h3>
+<div id="attendanceFeed"></div>
+
+<h3>Top 3 Regular Students</h3>
+<div id="top3area" style="display:flex;gap:8px"></div>
+
+<div id="overlay">
+  <div id="overlayContent">
+    <button id="logoutBtn">Logout</button>
+    <h3 id="dashName"></h3>
+    <p id="dashMeta"></p>
+    <img id="dashAvatar" style="width:80px;height:80px;border-radius:10px;display:block;margin:6px 0">
+    <div>
+      <input id="inpName" placeholder="Name"><br>
+      <input id="inpMobile" placeholder="Mobile"><br>
+      <input id="inpClass" placeholder="Class"><br>
+      <input id="inpJob" placeholder="Job Target"><br>
+      <input id="inpStatus" placeholder="Status"><br>
+      <input type="file" id="inpPic"><br>
+      <button id="saveProfile">Save Profile</button>
+    </div>
+    <hr>
+    <button id="markBtn">Mark Attendance</button>
+    <div id="markMsg"></div>
+    <h4>Your Recent Attendance</h4>
+    <div id="yourRecent"></div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
+import { getFirestore, collection, getDocs, addDoc, query, where, orderBy, onSnapshot, updateDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-storage.js";
+
+// Firebase Config
+const firebaseConfig = {
+  apiKey: "AIzaSyCFU5Oxlub5HK7Q8PLVm75Hm3cKfzVefs8",
+  authDomain: "attendance3-1d7cf.firebaseapp.com",
+  projectId: "attendance3-1d7cf",
+  storageBucket: "attendance3-1d7cf.firebasestorage.app",
+  messagingSenderId: "615910997079",
+  appId: "1:615910997079:web:b8c0f6fde1c17241bbb712",
+  measurementId: "G-5GEZ2TG2Q3"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const storage = getStorage(app);
+
+let studentsCache = [];
+let currentStudent = null;
+
+// Helpers
+function escapeHtml(s=''){ return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+
+// ---------- Render Students ----------
+const studentsListEl = document.getElementById('studentsList');
+const publicProfilesEl = document.getElementById('publicProfiles');
+const attendanceFeedEl = document.getElementById('attendanceFeed');
+const top3area = document.getElementById('top3area');
+const overlay = document.getElementById('overlay');
+const dashAvatar = document.getElementById('dashAvatar');
+const dashName = document.getElementById('dashName');
+const dashMeta = document.getElementById('dashMeta');
+const inpName = document.getElementById('inpName');
+const inpMobile = document.getElementById('inpMobile');
+const inpClass = document.getElementById('inpClass');
+const inpJob = document.getElementById('inpJob');
+const inpStatus = document.getElementById('inpStatus');
+const inpPic = document.getElementById('inpPic');
+const saveProfileBtn = document.getElementById('saveProfile');
+const saveMarkBtn = document.getElementById('markBtn');
+const yourRecentEl = document.getElementById('yourRecent');
+const markMsg = document.getElementById('markMsg');
+
+// Render function
+function renderStudentsList(){
+  studentsListEl.innerHTML=''; publicProfilesEl.innerHTML='';
+  for(const s of studentsCache){
+    const data = s.data;
+    const card = document.createElement('div'); card.className='studentItem';
+    const avatar = document.createElement('div'); avatar.className='avatar';
+    if(data.profilePicURL){
+      const img = document.createElement('img');
+      img.src = data.profilePicURL; img.style.width='60px'; img.style.height='60px'; img.style.borderRadius='10px'; img.style.objectFit='cover';
+      avatar.innerHTML=''; avatar.appendChild(img);
+    } else avatar.textContent=(data.name||'S')[0];
+    const meta = document.createElement('div'); meta.innerHTML=`<h3>${escapeHtml(data.name||'—')}</h3>
+      <p>${escapeHtml(data.class||'')} • <span style="color:#888">${escapeHtml(data.jobTarget||'')}</span></p>
+      <div class="loginRow"><input class="pin" placeholder="Enter PIN" data-id="${s.id}"><button class="btn" data-id="${s.id}">Login</button></div>`;
+    card.appendChild(avatar); card.appendChild(meta); studentsListEl.appendChild(card);
+
+    const profCard = document.createElement('div'); profCard.style.cssText='background:#0f172a;padding:10px;border-radius:10px;width:140px;text-align:center;border:1px solid rgba(255,255,255,0.02)';
+    const imgEl = document.createElement('img'); imgEl.style.cssText='width:84px;height:84px;border-radius:8px;object-fit:cover;margin-bottom:8px';
+    imgEl.src=data.profilePicURL||''; if(!imgEl.src) imgEl.style.background='linear-gradient(135deg,#06b6d4,#0ea5e9)';
+    const nm=document.createElement('div'); nm.textContent=data.name||''; nm.style.fontWeight=700;
+    const st=document.createElement('div'); st.className='smallMuted'; st.style.marginTop='6px'; st.textContent=data.status||'';
+    profCard.appendChild(imgEl); profCard.appendChild(nm); profCard.appendChild(st); publicProfilesEl.appendChild(profCard);
+  }
+}
+
+// ---------- Students listener ----------
+function startStudentsListener(){
+  const q = query(collection(db,'students'));
+  onSnapshot(q, snap=>{
+    studentsCache=[]; snap.forEach(d=>studentsCache.push({id:d.id,data:d.data()}));
+    renderStudentsList(); computeTop3();
+  });
+}
+
+// ---------- Login ----------
+studentsListEl.addEventListener('click', async ev=>{
+  const btn=ev.target.closest('button.btn'); if(!btn) return;
+  const id=btn.dataset.id;
+  const pinInput=document.querySelector(`input.pin[data-id="${id}"]`);
+  const pin = pinInput?pinInput.value.trim():'';
+  if(!pin){ alert('Enter PIN'); return; }
+  const sdoc=studentsCache.find(x=>x.id===id);
+  if(!sdoc){ alert('Student not found'); return; }
+  if(String(sdoc.data.code||'')!==String(pin)){ alert('Invalid PIN'); return; }
+  currentStudent={id:sdoc.id,data:sdoc.data}; openDashboard();
+});
+
+// ---------- Overlay ----------
+document.getElementById('logoutBtn').addEventListener('click',()=>{ overlay.style.display='none'; currentStudent=null; });
+function openDashboard(){
+  if(!currentStudent) return;
+  dashName.textContent=currentStudent.data.name||'Student';
+  dashMeta.textContent=`${currentStudent.data.class||''} • ${currentStudent.data.mobile||''}`;
+  dashAvatar.src=currentStudent.data.profilePicURL||''; dashAvatar.style.display=currentStudent.data.profilePicURL?'block':'none';
+  inpName.value=currentStudent.data.name||''; inpMobile.value=currentStudent.data.mobile||''; inpClass.value=currentStudent.data.class||'';
+  inpJob.value=currentStudent.data.jobTarget||''; inpStatus.value=currentStudent.data.status||'';
+  markMsg.textContent=''; overlay.style.display='flex';
+  loadYourRecent();
+}
+
+// ---------- Save profile ----------
+saveProfileBtn.addEventListener('click', async ()=>{
+  if(!currentStudent) return;
+  const updates = {
+    name: inpName.value.trim(),
+    mobile: inpMobile.value.trim(),
+    class: inpClass.value.trim(),
+    jobTarget: inpJob.value.trim(),
+    status: inpStatus.value.trim()
+  };
+  const file = inpPic.files[0];
+  if(file){
+    const storRef=ref(storage,`profilePics/${currentStudent.id}/${Date.now()}`);
+    await uploadBytes(storRef,file);
+    updates.profilePicURL=await getDownloadURL(storRef);
+  }
+  await updateDoc(doc(db,'students',currentStudent.id),updates);
+  currentStudent.data={...currentStudent.data,...updates};
+  const idx = studentsCache.findIndex(x=>x.id===currentStudent.id);
+  if(idx>=0) studentsCache[idx].data=currentStudent.data;
+  renderStudentsList();
+  dashName.textContent=currentStudent.data.name||''; dashMeta.textContent=`${currentStudent.data.class||''} • ${currentStudent.data.mobile||''}`;
+  if(currentStudent.data.profilePicURL){ dashAvatar.src=currentStudent.data.profilePicURL; dashAvatar.style.display='block'; }
+  alert('Profile saved');
+});
+
+// ---------- Mark attendance ----------
+saveMarkBtn.addEventListener('click', async ()=>{
+  if(!currentStudent) return;
+  const today = new Date().toISOString().slice(0,10);
+  const q = query(collection(db,'attendance'),where('studentId','==',currentStudent.id),where('date','==',today));
+  const snap = await getDocs(q);
+  if(!snap.empty){ markMsg.textContent='You already marked attendance for today.'; return; }
+  await addDoc(collection(db,'attendance'),{
+    studentId:currentStudent.id,name:currentStudent.data.name||'',date:today,status:'Present',time:serverTimestamp()
+  });
+  markMsg.textContent='Attendance marked ✅';
+  loadYourRecent();
+});
+
+// ---------- Load recent ----------
+async function loadYourRecent(){
+  if(!currentStudent) return;
+  yourRecentEl.innerHTML='';
+  const attQ=query(collection(db,'attendance'),where('studentId','==',currentStudent.id),orderBy('time','desc'));
+  const snap = await getDocs(attQ);
+  if(snap.empty){ yourRecentEl.innerHTML='<div class="smallMuted">No attendance yet</div>'; return; }
+  snap.forEach(d=>{
+    const data=d.data();
+    const timeText = data.time && data.time.toDate ? data.time.toDate().toLocaleString() : data.time||data.date;
+    const el = document.createElement('div'); el.className='feedItem';
+    el.innerHTML=`<div style="width:10px;height:10px;border-radius:50%;background:#0ea5e9"></div>
+      <div style="flex:1"><div style="font-weight:700">${data.name}</div><div class="smallMuted">${data.date} • ${timeText}</div></div>`;
+    yourRecentEl.appendChild(el);
+  });
+}
+
+// ---------- Live attendance feed ----------
+function startAttendanceFeed(){
+  const q=query(collection(db,'attendance'),orderBy('time','desc'));
+  onSnapshot(q,snap=>{
+    attendanceFeedEl.innerHTML='';
+    snap.forEach(docSnap=>{
+      const d=docSnap.data();
+      const item=document.createElement('div'); item.className='feedItem';
+      const stud=studentsCache.find(s=>s.id===d.studentId);
+      const img=document.createElement('img'); img.src=stud?.data?.profilePicURL||''; if(!img.src) img.style.background='linear-gradient(135deg,#06b6d4,#0ea5e9)';
+      item.appendChild(img);
+      const md=document.createElement('div'); md.innerHTML=`<div style="font-weight:700">${escapeHtml(d.name||'—')}</div><div class="smallMuted">${escapeHtml(d.date)}</div>`;
+      item.appendChild(md);
+      attendanceFeedEl.appendChild(item);
+    });
+  });
+}
+
+// ---------- Compute top3 ----------
+async function computeTop3(){
+  const attSnap=await getDocs(collection(db,'attendance'));
+  const counts={};
+  attSnap.forEach(a=>{ const ad=a.data(); counts[ad.studentId]=(counts[ad.studentId]||0)+1 });
+  const arr = studentsCache.map(s=>({id:s.id,name:s.data.name,total:counts[s.id]||0}));
+  arr.sort((a,b)=>b.total-a.total);
+  top3area.innerHTML=''; arr.slice(0,3).forEach(t=>{
+    const c=document.createElement('div'); c.className='topCard';
+    c.innerHTML=`<h4 class="smallMuted">${escapeHtml(t.name||'—')}</h4><p>${t.total}</p>`;
+    top3area.appendChild(c);
+  });
+}
+
+// ---------- Teacher ----------
+document.getElementById('teacherBtn').addEventListener('click', async ()=>{
+  const code=document.getElementById('teacherSecret').value.trim();
+  if(code!=='TEACHER123'){ alert('Invalid teacher code'); return; }
+  const studSnap = await getDocs(collection(db,'students'));
+  const attSnap = await getDocs(collection(db,'attendance'));
+  const map={}; attSnap.forEach(a=>{ const d=a.data(); map[d.studentId]=map[d.studentId]?map[d.studentId]+1:1 });
+  let html='<div style="max-height:420px;overflow:auto"><table style="width:100%;border-collapse:collapse;color:#e6eef8"><thead><tr><th>Name</th><th>Mobile</th><th>Class</th><th>Total</th></tr></thead><tbody>';
+  studSnap.forEach(s=>{ const d=s.data(); html+=`<tr><td>${escapeHtml(d.name||'')}</td><td>${escapeHtml(d.mobile||'')}</td><td>${escapeHtml(d.class||'')}</td><td>${map[s.id]||0}</td></tr>` });
+  html+='</tbody></table></div>'; alert('Teacher access granted — report will open in new window.');
+  const w=window.open('','_blank'); w.document.write(`<html><head><title>Teacher Report</title></head><body style="background:#071021;color:#e6eef8;font-family:Arial;padding:18px"><h2>All Students Report</h2>${html}</body></html>`);
+});
+
+// ---------- Refresh ----------
+document.getElementById('refreshBtn').addEventListener('click', ()=>{ renderStudentsList(); computeTop3(); });
+
+// ---------- Init ----------
+(async function init(){
+  startStudentsListener();
+  startAttendanceFeed();
+  computeTop3();
+})();
+</script>
+
+</body>
+</html>
