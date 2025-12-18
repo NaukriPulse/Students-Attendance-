@@ -233,7 +233,7 @@ function loadFeed(){
     students.forEach(s=>{
       const div=document.createElement("div");
       div.className="feedItem";
-      div.textContent=s.seat+(present.includes(s.seat)?" ✔ Present":" ❌ Absent");
+      div.textContent=s.seat+(present.includes(s.seat)?" ✅ Present":" ❌ Absent");
       feed.appendChild(div);
     });
   });
