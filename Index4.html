@@ -16,7 +16,6 @@
   --muted:#94a3b8;
   --radius:16px;
 }
-
 *{box-sizing:border-box;font-family:Inter}
 body{
   margin:0;
@@ -24,7 +23,6 @@ body{
   color:#e5e7eb;
   padding:24px;
 }
-
 .container{max-width:1200px;margin:auto}
 
 /* HEADER */
@@ -34,7 +32,6 @@ header{
   align-items:center;
   margin-bottom:20px;
 }
-
 .brand{display:flex;gap:14px;align-items:center}
 .logo{
   width:60px;height:60px;
@@ -42,7 +39,6 @@ header{
   background:linear-gradient(135deg,var(--accent),var(--accent2));
   display:flex;align-items:center;justify-content:center;
   font-weight:800;color:#020617;
-  box-shadow:0 0 30px rgba(34,211,238,.5);
 }
 
 /* CLOCK */
@@ -51,8 +47,6 @@ header{
   border-radius:14px;
   background:rgba(255,255,255,.05);
   border:1px solid rgba(255,255,255,.08);
-  cursor:pointer;
-  box-shadow:0 0 20px rgba(168,85,247,.3);
 }
 
 /* GRID */
@@ -62,40 +56,31 @@ header{
   border:1px solid rgba(255,255,255,.08);
   border-radius:var(--radius);
   padding:18px;
-  box-shadow:0 10px 40px rgba(0,0,0,.6);
 }
 
 /* STUDENTS */
-.studentsList{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
-
-.studentItem{
-  display:flex;justify-content:space-between;align-items:center;
-  padding:14px;border-radius:14px;
-  background:linear-gradient(135deg,#020617,#020617);
-  border:1px solid rgba(255,255,255,.06);
-  transition:.3s;
+.studentsList{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  gap:14px
 }
-.studentItem:hover{transform:translateY(-4px);box-shadow:0 0 25px rgba(34,211,238,.3)}
-
+.studentItem{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:14px;
+  border-radius:14px;
+  background:#020617;
+  border:1px solid rgba(255,255,255,.06);
+}
 .avatar{
   width:52px;height:52px;border-radius:14px;
   background:linear-gradient(135deg,#22d3ee,#a855f7);
   display:flex;align-items:center;justify-content:center;
   font-weight:700;color:#020617;
 }
-
-.pin{
-  width:80px;
-  padding:8px;
-  border-radius:10px;
-  border:none;
-  background:rgba(255,255,255,.05);
-  color:#fff;
-  text-align:center;
-}
-
 .btn{
-  padding:8px 14px;
+  padding:8px 18px;
   border:none;
   border-radius:10px;
   background:linear-gradient(135deg,var(--accent),var(--accent2));
@@ -135,7 +120,7 @@ input[type="date"]{
     <div class="logo">BL</div>
     <div>
       <h2>Balaji Library Attendance</h2>
-      <p class="lead">Premium Real-Time System</p>
+      <p>Premium Real-Time System</p>
     </div>
   </div>
   <div class="clock" id="clock">--</div>
@@ -153,7 +138,6 @@ input[type="date"]{
 <div class="card">
   <h3>Select Date</h3>
   <input type="date" id="calendar">
-
   <h3 style="margin-top:16px">Attendance</h3>
   <div id="attendanceFeed"></div>
 </div>
@@ -161,7 +145,7 @@ input[type="date"]{
 </div>
 
 <footer style="text-align:center;margin-top:20px;color:#94a3b8">
-  Built for ❤️ Balaji Library • Naukri Pulse 
+  Built for ❤️ Balaji Library • Naukri Pulse
 </footer>
 
 </div>
@@ -180,15 +164,16 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 const students = Array.from({length:35},(_,i)=>({
-  seat:`Seat No. ${String(i+1).padStart(2,'0')}`,
-  code:String(1111+i)
+  seat:`Seat No. ${String(i+1).padStart(2,'0')}`
 }));
 
 const studentsList = document.getElementById("studentsList");
 const feed = document.getElementById("attendanceFeed");
 const calendar = document.getElementById("calendar");
 
-function today(){return calendar.value || new Date().toISOString().slice(0,10)}
+function today(){
+  return calendar.value || new Date().toISOString().slice(0,10);
+}
 
 function renderStudents(){
   studentsList.innerHTML="";
@@ -197,30 +182,23 @@ function renderStudents(){
     div.className="studentItem";
     div.innerHTML=`
       <div style="display:flex;gap:12px;align-items:center">
-        <div class="avatar">${s.seat.split(" ")[2]}</div>
+        <div class="avatar">${s.seat.slice(-2)}</div>
         <strong>${s.seat}</strong>
       </div>
-      <div>
-        <input class="pin" type="password" placeholder="PIN">
-        <button class="btn">Mark</button>
-      </div>`;
-    const btn=div.querySelector("button");
-    const pin=div.querySelector("input");
-
-    btn.onclick=async()=>{
-      if(pin.value===s.code){
-        const ref=doc(db,"attendance",`${today()}_${s.seat}`);
-        if(!(await getDoc(ref)).exists()){
-          await setDoc(ref,{seat:s.seat,date:today()});
-          alert("Marked Present");
-        }
-      } else alert("Wrong PIN");
+      <button class="btn">Mark</button>
+    `;
+    div.querySelector("button").onclick=async()=>{
+      const ref=doc(db,"attendance",`${today()}_${s.seat}`);
+      if(!(await getDoc(ref)).exists()){
+        await setDoc(ref,{seat:s.seat,date:today()});
+        alert("Attendance Marked");
+      }else{
+        alert("Already Marked");
+      }
     };
     studentsList.appendChild(div);
   });
 }
-
-calendar.onchange=()=>loadFeed();
 
 function loadFeed(){
   feed.innerHTML="";
@@ -229,7 +207,6 @@ function loadFeed(){
     snap.forEach(d=>{
       if(d.data().date===today()) present.push(d.data().seat);
     });
-
     students.forEach(s=>{
       const div=document.createElement("div");
       div.className="feedItem";
@@ -239,10 +216,11 @@ function loadFeed(){
   });
 }
 
+calendar.onchange=loadFeed;
+
 /* CLOCK */
 setInterval(()=>{
-  const d=new Date();
-  clock.textContent=d.toLocaleString();
+  clock.textContent=new Date().toLocaleString();
 },1000);
 
 renderStudents();
